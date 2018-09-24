@@ -17,8 +17,6 @@ Readings: Chapters 3-4 in Weisberg Applied Linear Regression
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-This exercise involves the UN data set from `alr3` package. Install `alr3` and the `car` packages and load the data to answer the following questions adding your code in the code chunks.  Please add appropriate code to the chunks to suppress messages and warnings as needed once you are sure the code is working properly and remove instructions if no longer needed. Figures should have informative captions. Please switch the output to pdf for your final version to upload to Sakai. **Remove these instructions for final submission**
-
 
 ## Exploratory Data Analysis
 
@@ -27,7 +25,6 @@ This exercise involves the UN data set from `alr3` package. Install `alr3` and t
 ```{r data}
 include = FALSE
 suppressWarnings(library(car))
-suppressWarnings(library(carData))
 library(carData)
 library(alr3)
 data(UN3, package="alr3")
@@ -35,6 +32,10 @@ help(UN3)
 library(car)
 library(ggplot2)
 library(knitr)
+library(dplyr)
+library(knitr)
+library(ggplot2)
+library(GGally)
 ```
 
 
@@ -86,7 +87,9 @@ plot(sqrt(UN3$ModernC), UN3$PPgdp)
 plot((UN3$ModernC)^2, UN3$Fertility)
 plot(log(UN3$ModernC), UN3$Pop)
 ```
-ModernC had nonlinear relationship with Pop. Pop and ModernC has some potential outliers.
+From the graphs, i could identify that ModernC had nonlinear relationship with Pop and PPgdp, which may imply the need for further transformations Pop and ModernC has some potential outliers.
+Among all the precditors, Fertility would be the best variable to predict ModernC, since Fertility has the most linear relationship with "ModernC. And PPgdp may be of the most concern, since its relationship with ModernC seems most nonlinear.
+
 
 ## Model Fitting
 
@@ -100,9 +103,9 @@ summary(reg)
 par(mfrow = c(2, 2))
 plot(reg)
 ```
-r=residual randomly distributed arount fitted line, we saw the residual vs fitted graph looks fine. The normal QQ plot is showing a straight line trend rather than a curved shape,so we saw not necessiliy normality with a few outliers on the tails. heavy-tailed,quantile larger than normal value
+We want residual randomly distributed around fitted line, and we saw the residual vs fitted graph looks fine. The normal QQ plot is showing a straight line trend rather than a curved shape,so we saw not necessiliy normality with a few outliers on the tails. heavy-tailed,quantile larger than normal value
 We wanted to see random pattern in the scale-location plot, and we kind of have it.
-For the residual vs.leverage plot, we could see India and China being two influential points. 125 obeservations are used in my model fitting.
+For the residual vs.leverage plot, we could see India and China being marked out by R, but they do not appear to be influential. And 125 obeservations are used in my model fitting.
 
 5. Examine added variable plots `car::avPlot` or `car::avPlots`  for your model above. Are there any plots that suggest that transformations are needed for any of the terms in the model? Describe. Is it likely that any of the localities are influential for any of the terms?  Which localities?  Which terms? 
 
@@ -111,7 +114,8 @@ car::avPlots(model = reg)
 ```
 From the added-variable plots, i think the Pop is especially clustered and did not show linearlity, also the PPgdp shows a little clustering pattern, so i think transformation is needed for Pop and PPgdp.
 
-From the graphs, Kuwaito and Cook's Islands are influential for Change. China and India are influential for Pop.
+From the graphs, Kuwaito and Cook's Islands are potential influential for Change. China and India are potential influential for Pop, since they may be responsible for the linear relationship seen on the graph.
+
 
 6.  Using the Box-Tidwell  `car::boxTidwell` or graphical methods find appropriate transformations of the predictor variables to be used as predictors in the linear model.  If any predictors are negative, you may need to transform so that they are non-negative.  Describe your method and the resulting transformations.
 
@@ -141,11 +145,11 @@ termplot(reg_trans , terms = "Pop",
          smooth = panel.smooth)
 
 
-car::boxTidwell(ModernC~PPgdp+Pop,other.x=~Frate+Change+Fertility+Purban,data=UN3_trans,max.iter=25, tol=0.001,verbose=FALSE)
 
 ```
 
-I initially looked at the added variable plots and saw PPgdp and Pop may be two variable needing transformation(since they are both clustered). I first tried the boxTidwell method and found that both variables give insigificance, Then i tries the powerTransform function, found that Change should be transformed to its 0.3 power, however, we would want to elimate the negative values in the variable Change. After bringing all values in Change positive, i apply powerTranform again to find that only variable needing transformation is Pop. Since 0.33 is relatively close to 0.5, a square root transformation will be approriate. Then i tried the boxTidwell again to find that a log transformation on PPgdp will be disired.
+I initially looked at the added variable plots and saw PPgdp and Pop may be two variable needing transformation(since they are both clustered). I first tried the boxTidwell method and found that both variables give insigificance, Then i tried the powerTransform function, found that Change should be transformed to its 0.3 power, however, we would want to elimate the negative values in the variable Change. After bringing all values positive in Change, i apply powerTranform again to find that only variable needing transformation is Pop. Since 0.33 is relatively close to 0.5, a square root transformation will be approriate. 
+Also see the disired transformation from the added variable graphs in question 5, since both graph for PPgdp and Pop seem clustered, we wanted a way to make them more spread. So i impose a log transformation on PPgdp, and from the termplot before&after transformation, my transformation did improve the graph.
 
 
 
@@ -182,7 +186,7 @@ termplot(reg_trans , terms = "PPgdp",
          partial.resid = T, se=T, rug=T,
          smooth = panel.smooth)
 ```
-After the transformation, the termsplot shows that both PPgdp and Pop are less clustered. We could also see this pattern from the added variable plot. The residual plot did not show a lot difference before and after transformation.
+After the transformation, the termplot shows that both PPgdp and Pop are less clustered. We could also see this pattern from the added variable plot. Also, I observed improvements in residuals plots.Shape of the tail on normal QQ plot improved. The line on "Residuals vs. Leverage" became flatter. 
 
 9. Start by finding the best transformation of the response and then find transformations of the predictors.  Do you end up with a different model than in 8?
 
@@ -211,22 +215,25 @@ termplot(reg_trans1 , terms = "Pop",
 
 
 ```
-No, because no transformation has been imposed on the response variable, i end up with the same model as in question 8.
+No, because no transformation has been imposed on the response variable, i end up with the same model as in question 8. For the predictors, i imposed same transformation after doing a powerTransform, changing the values in Change to be positive, and impose the powerTransform again to see a sqrt on PPgdp and see a log transform needed from the added variable plots.
 
 
 
-10.  Are there any outliers or influential points in the data?  Explain.  If so, refit the model after removing any outliers and comment on residual plots.
+10.  Are there any outliers or influential points in the data?  Explain. If so, refit the model after removing any outliers and comment on residual plots.
 
 
 ```{r}
-UN3_out=UN3_1[-c(25,50),]
+outlierTest(reg_trans)
+UN3_out=UN3_1[-c(28),]
 reg_rm<-lm(ModernC ~ log(PPgdp)+sqrt(Pop)+Change+Frate+Fertility+Purban,data=UN3_out)
 par(mfrow = c(2, 2))
 plot(reg_rm)
 car::avPlots(reg_rm)
 summary(reg_rm)
+
 ```
-China and India are points with high leverage and they are potential outliers, but not necessilary influential points. After removing these two points, another new point came to our eyes, Poland, marked by R, which is not that high leverage in comparison to China and India.
+China and India are points with high leverage and they are potential outliers, but not necessilary influential points. I tried to remove these two counrties. After removing these two points, another new point came to our eyes, Poland, marked by R, which is not that high leverage in comparison to China and India. However the residual plots did not change a lot,suggesting those two points may not be influential. 
+After a outlierTest, cook's island seems to be one outlier, so we removed it. The normal QQ's tail seem to look better due to the removal.
 
 
 
@@ -237,51 +244,33 @@ China and India are points with high leverage and they are potential outliers, b
 
 ```{r}
 
-
-
 summary(reg_rm)$coefficient
 a=as.matrix(summary(reg_rm)$coefficient)
 b=data.frame("Estimate"=a[,1],"Lower Confidence Interval"=(a[,1]-a[,2]),"Upper Confidence Interval"=(a[,1]+a[,2]))
 kable(b)
 
 
-# M<-confint(reg_rm)
-# #M[2,1]<-exp(confint(reg_rm,level=0.95)[2,1])
-# #M[2,2]<-exp(confint(reg_rm,level=0.95)[2,2])
-# M[3,1]<-confint(reg_rm)[3,1]^2
-# M[3,2]<-confint(reg_rm)[3,2]^2
-# #row.names(M)[2]="PPgdp"
-# row.names(M)[3]="Pop"
-# round(M,3)
-
-# summary(reg)
-# M<-confint(reg,level=0.95)
-# #M[2,1]<-exp(confint(reg_rm,level=0.95)[2,1])
-# #M[2,2]<-exp(confint(reg_rm,level=0.95)[2,2])
-# #M[3,1]<-confint(reg_1,level=0.95)[3,1]^2
-# #M[3,2]<-confint(reg_rm,level=0.95)[3,2]^2
-# #row.names(M)[2]="PPgdp"
-# #row.names(M)[3]="Pop"
-# round(M,5)
 
 ```
-One unit increse in square root of per capita 2001 GDP will result in 5.183 unit increase in percent of unmarried women using a modern method of contraception.And the 95% confidence interval is [3.81,6.55]
+10% increse in  per capita 2001 GDP will result in 14.93% increase in percent of unmarried women using a modern method of contraception.And the 95% confidence interval is $[10.9,18.96]$
 
-One unit increse in log of population(in thousands) will result in 0.0236 unit increase in percent of unmarried women using a modern method of contraception.And the 95% confidence interval is [0.012,0.035]
+10% increse in population(in thousands) will result in 0.024 unit increase in percent of unmarried women using a modern method of contraception. And the 95% confidence interval is [0.016,0.0031]
 
-One unit increse in annual population growth rate percent will result in 4.84 unit increase in percent of unmarried women using a modern method of contraception.And the 95% confidence interval is [2.78,6.89]
+One unit increse in annual population growth rate percent will result in 5.91 unit increase in percent of unmarried women using a modern method of contraception.And the 95% confidence interval is [3.86,7.97]
 
-One unit increse in percent of demales over 15 economically active will result in 0.182 unit increase in percent of unmarried women using a modern method of contraception.And the 95% confidence interval is [0.104,0.259]
+One unit increse in percent of females over 15 economically active will result in 0.206 unit increase in percent of unmarried women using a modern method of contraception.And the 95% confidence interval is [0.131,0.281]
 
-One unit increse in expected number of life births per female 2000 will result in -9.31 unit increase in percent of unmarried women using a modern method of contraception.And the 95% confidence interval is [-11,-7.5]
+One unit increse in expected number of life births per female 2000 will result in -10.15 unit increase in percent of unmarried women using a modern method of contraception.And the 95% confidence interval is [-11.9,-8.4]
 
-One unit increse in Percent of population that is urban, 2001 will result in -0.29 unit increase in percent of unmarried women using a modern method of contraception.And the 95% confidence interval is [-0.127,0.068]
+One unit increse in Percent of population that is urban, 2001 will result in -0.03 unit increase in percent of unmarried women using a modern method of contraception.And the 95% confidence interval is [-0.12,0.06]
+
+
 
 
 12. Provide a paragraph summarizing your final model  and findings suitable for the US envoy to the UN after adjusting for outliers or influential points.   You should provide a justification for any case deletions in your final model
 
 
-I use na.omit to remove all rows containing NA's also, i removed two potential influential points:India and China. After all these case deletions, i applied log transformation to Per capital GDP and square root transformation to Population. And the final model ModernC~Change+log(PPgdp)+Frate+sqrt(Pop)+Fertility+Purban. And my finding is after applying these transformations, the added-variable plots shows that the Population is not so clustered.
+I use na.omit to remove all rows containing NA's also, i decide not to removed India and China since they are not influential. After all these case deletions, i applied log transformation to Per capital GDP and square root transformation to Population. And the final model ModernC~Change+log(PPgdp)+Frate+sqrt(Pop)+Fertility+Purban. $$Modern=3.26+4.98log(PPgdp)+0.02sqrt(Pop)-10.15Fertility+5.91Change-0.03Purban+0.21Frate$$And my finding is after applying these transformations, the added-variable plots shows that the Population is not so clustered.
 
 
 
@@ -321,4 +310,7 @@ summary(reg_rm)$coef
 summary(lm(e_Y ~ e_X1, data=df))$coef
 
 ```
+According to the result, the slope of our manually constructed added variable plot for predictor Fertility is -9.3, which is the same as the estimate from our model.
+
+
 
